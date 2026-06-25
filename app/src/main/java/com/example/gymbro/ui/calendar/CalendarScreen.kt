@@ -68,7 +68,7 @@ fun CalendarScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN").forEach { day ->
+            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
                 Text(
                     text = day,
                     modifier = Modifier.weight(1f),
@@ -108,7 +108,7 @@ fun CalendarScreen(
         BrutalistCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "LEGEND",
+                    text = "Legend",
                     style = MaterialTheme.typography.labelLarge,
                     color = BrutalistColors.text,
                 )
@@ -117,10 +117,10 @@ fun CalendarScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    LegendItem(BrutalistLime, "GYM")
-                    LegendItem(BrutalistRed, "SKIP")
-                    LegendItem(BrutalistPurple, "EXCUSE")
-                    LegendItem(BrutalistGray, "REST")
+                    LegendItem(BrutalistLime, "Gym")
+                    LegendItem(BrutalistRed, "Skip")
+                    LegendItem(BrutalistPurple, "Excuse")
+                    LegendItem(BrutalistBlue, "Rest")
                 }
             }
         }
@@ -150,8 +150,8 @@ fun DayCell(
         AttendanceStatus.WENT     -> BrutalistLime
         AttendanceStatus.SKIPPED  -> BrutalistRed
         AttendanceStatus.EXCUSED  -> BrutalistPurple
-        AttendanceStatus.REST_DAY -> BrutalistGray
-        null -> Color.Transparent
+        AttendanceStatus.REST_DAY -> BrutalistBlue
+        null -> BrutalistColors.card
     }
 
     val textColor = when (attendance?.status) {
@@ -165,13 +165,10 @@ fun DayCell(
 
     Box(
         modifier = Modifier
-            .padding(2.dp)
+            .padding(4.dp)
             .aspectRatio(1f)
-            .then(
-                if (fillColor != Color.Transparent)
-                    Modifier.background(fillColor, RoundedCornerShape(4.dp))
-                else Modifier
-            )
+            .brutalistShadow(offsetX = 3.dp, offsetY = 3.dp)
+            .background(fillColor, RoundedCornerShape(4.dp))
             .border(
                 width = if (isToday) 3.dp else 1.dp,
                 color = if (isToday) BrutalistYellow else borderColor.copy(alpha = 0.4f),
@@ -244,7 +241,7 @@ fun AttendanceDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "ATTENDANCE · $date",
+                text = "Attendance · $date",
                 style = MaterialTheme.typography.labelLarge,
             )
         },
@@ -266,30 +263,30 @@ fun AttendanceDialog(
                         onClick = { onConfirm(AttendanceStatus.WENT, SkipReason.NONE) },
                         color = BrutalistLime,
                         modifier = Modifier.weight(1f),
-                    ) { Text("YES", style = MaterialTheme.typography.labelLarge) }
+                    ) { Text("Yes", style = MaterialTheme.typography.labelLarge) }
 
                     BrutalistButton(
                         onClick = { selectedStatus = AttendanceStatus.SKIPPED },
                         color = BrutalistRed,
                         textColor = White,
                         modifier = Modifier.weight(1f),
-                    ) { Text("NO", style = MaterialTheme.typography.labelLarge) }
+                    ) { Text("No", style = MaterialTheme.typography.labelLarge) }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 BrutalistButton(
                     onClick = { onConfirm(AttendanceStatus.REST_DAY, SkipReason.NONE) },
-                    color = BrutalistGray,
+                    color = BrutalistBlue,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("REST DAY", style = MaterialTheme.typography.labelLarge) }
+                ) { Text("Rest Day", style = MaterialTheme.typography.labelLarge) }
 
                 if (selectedStatus == AttendanceStatus.SKIPPED) {
                     Spacer(modifier = Modifier.height(16.dp))
                     BrutalistDivider()
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "REASON FOR SKIPPING:",
+                        "Reason for skipping:",
                         style = MaterialTheme.typography.labelLarge,
                         color = BrutalistColors.text,
                     )
@@ -333,7 +330,7 @@ fun AttendanceDialog(
         confirmButton = {},
         dismissButton = {
             BrutalistOutlinedButton(onClick = onDismiss) {
-                Text("CANCEL", style = MaterialTheme.typography.labelLarge)
+                Text("Cancel", style = MaterialTheme.typography.labelLarge)
             }
         },
     )

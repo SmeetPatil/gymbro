@@ -60,7 +60,7 @@ fun HealthScreen(
         item {
             Column {
                 Text(
-                    text = "HEALTH DASHBOARD",
+                    text = "Health Dashboard",
                     style = MaterialTheme.typography.headlineMedium,
                     color = BrutalistColors.text,
                     fontWeight = FontWeight.Bold,
@@ -104,7 +104,7 @@ fun HealthScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                "STEPS TODAY",
+                                "Steps Today",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = BrutalistColors.text,
                             )
@@ -143,7 +143,7 @@ fun HealthScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                "CONNECT HEALTH DATA",
+                                "Connect Health Data",
                                 style = MaterialTheme.typography.labelLarge,
                             )
                         }
@@ -157,7 +157,7 @@ fun HealthScreen(
             BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistPink) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "BMI CALCULATOR",
+                        "BMI Calculator",
                         style = MaterialTheme.typography.labelLarge,
                         color = BrutalistPink,
                     )
@@ -234,7 +234,7 @@ fun HealthScreen(
         // ── Weight History ─────────────────────────────────────────
         item {
             Text(
-                "WEIGHT HISTORY",
+                "Weight History",
                 style = MaterialTheme.typography.labelLarge,
                 color = BrutalistColors.text,
             )

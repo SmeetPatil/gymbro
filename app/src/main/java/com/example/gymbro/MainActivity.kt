@@ -18,19 +18,27 @@ import java.util.concurrent.TimeUnit
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         scheduleMonthlyWorker()
+        
+        val themeViewModel: com.example.gymbro.ui.ThemeViewModel by viewModels()
+        
         setContent {
-            GymBroTheme { // follows system dark/light
+            val isDarkTheme by themeViewModel.isDarkTheme.collectAsState()
+            
+            GymBroTheme(darkTheme = isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen()
+                    MainScreen(themeViewModel = themeViewModel)
                 }
             }
         }

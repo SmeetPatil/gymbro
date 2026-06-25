@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -13,48 +14,43 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 // ── Shape Constants ────────────────────────────────────────────────
-val BrutalistShape = RoundedCornerShape(4.dp)
+val BrutalistShape = RectangleShape
 
 // ── Dynamic theme-aware colors ─────────────────────────────────────
 object BrutalistColors {
     val border: Color @Composable get() = MaterialTheme.colorScheme.outline
     val shadow: Color @Composable get() =
-        if (isSystemInDarkTheme()) BrutalistDarkShadow else BrutalistLightShadow
+        if (LocalIsDarkTheme.current) BrutalistDarkShadow else BrutalistLightShadow
     val card: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
     val text: Color @Composable get() = MaterialTheme.colorScheme.onBackground
     val textMuted: Color @Composable get() =
-        if (isSystemInDarkTheme()) BrutalistDarkTextMuted else BrutalistLightTextMuted
+        if (LocalIsDarkTheme.current) BrutalistDarkTextMuted else BrutalistLightTextMuted
     val background: Color @Composable get() = MaterialTheme.colorScheme.background
     val navBar: Color @Composable get() =
-        if (isSystemInDarkTheme()) BrutalistDarkNavBar else BrutalistLightNavBar
+        if (LocalIsDarkTheme.current) BrutalistDarkNavBar else BrutalistLightNavBar
 }
 
 // ── Hard Shadow Modifier (canvas-based — never clips) ──────────────
 
-/**
- * Draws a hard offset shadow behind the composable using Canvas drawBehind.
- * The shadow is rendered as a solid rounded rectangle shifted by [offsetX]/[offsetY].
- * Padding is added to reserve layout space so the shadow doesn't overlap siblings.
- */
 @Composable
 fun Modifier.brutalistShadow(
-    offsetX: Dp = 5.dp,
-    offsetY: Dp = 5.dp,
-    cornerRadius: Dp = 4.dp,
+    offsetX: Dp = 4.dp,
+    offsetY: Dp = 4.dp,
 ): Modifier {
     val shadowColor = BrutalistColors.shadow
     return this
         .padding(end = offsetX, bottom = offsetY)
         .drawBehind {
-            drawRoundRect(
+            drawRect(
                 color = shadowColor,
                 topLeft = Offset(offsetX.toPx(), offsetY.toPx()),
                 size = size,
-                cornerRadius = CornerRadius(cornerRadius.toPx()),
             )
         }
 }
@@ -65,23 +61,21 @@ fun Modifier.brutalistShadow(
 fun BrutalistCard(
     modifier: Modifier = Modifier,
     accentColor: Color? = null,
-    shadowOffset: Dp = 5.dp,
+    shadowOffset: Dp = 4.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val borderColor = BrutalistColors.border
     val cardBg = BrutalistColors.card
     val shadowColor = BrutalistColors.shadow
-    val cr = 4.dp
 
     Card(
         modifier = modifier
             .padding(end = shadowOffset, bottom = shadowOffset)
             .drawBehind {
-                drawRoundRect(
+                drawRect(
                     color = shadowColor,
                     topLeft = Offset(shadowOffset.toPx(), shadowOffset.toPx()),
                     size = size,
-                    cornerRadius = CornerRadius(cr.toPx()),
                 )
             },
         shape = BrutalistShape,
@@ -102,25 +96,25 @@ fun BrutalistButton(
     color: Color = BrutalistYellow,
     textColor: Color = BrutalistLightText,
     shadowOffset: Dp = 4.dp,
+    shape: Shape = RectangleShape,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
     val borderColor = BrutalistColors.border
     val shadowColor = BrutalistColors.shadow
-    val cr = 4.dp
 
     Button(
         onClick = onClick,
         modifier = modifier
             .padding(end = shadowOffset, bottom = shadowOffset)
             .drawBehind {
-                drawRoundRect(
+                drawRect(
                     color = shadowColor,
                     topLeft = Offset(shadowOffset.toPx(), shadowOffset.toPx()),
                     size = size,
-                    cornerRadius = CornerRadius(cr.toPx()),
                 )
             },
-        shape = BrutalistShape,
+        shape = shape,
         colors = ButtonDefaults.buttonColors(
             containerColor = color,
             contentColor = textColor,
@@ -130,7 +124,7 @@ fun BrutalistButton(
             defaultElevation = 0.dp,
             pressedElevation = 0.dp,
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        contentPadding = contentPadding,
         content = content,
     )
 }
@@ -141,34 +135,35 @@ fun BrutalistButton(
 fun BrutalistOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    shape: Shape = RectangleShape,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
     val shadowColor = BrutalistColors.shadow
-    val cr = 4.dp
-    val shadowOffset = 3.dp
+    val shadowOffset = 4.dp
 
     OutlinedButton(
         onClick = onClick,
         modifier = modifier
             .padding(end = shadowOffset, bottom = shadowOffset)
             .drawBehind {
-                drawRoundRect(
+                drawRect(
                     color = shadowColor,
                     topLeft = Offset(shadowOffset.toPx(), shadowOffset.toPx()),
                     size = size,
-                    cornerRadius = CornerRadius(cr.toPx()),
                 )
             },
-        shape = BrutalistShape,
+        shape = shape,
         border = BorderStroke(2.dp, BrutalistColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = BrutalistColors.card,
             contentColor = BrutalistColors.text,
         ),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 0.dp,
             pressedElevation = 0.dp,
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        contentPadding = contentPadding,
         content = content,
     )
 }
@@ -238,9 +233,9 @@ fun BrutalistFilterChip(
         modifier = modifier.border(
             width = 2.dp,
             color = BrutalistColors.border,
-            shape = BrutalistShape,
+            shape = RectangleShape,
         ),
-        shape = BrutalistShape,
+        shape = RectangleShape,
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = BrutalistYellow,
             selectedLabelColor = BrutalistLightText,

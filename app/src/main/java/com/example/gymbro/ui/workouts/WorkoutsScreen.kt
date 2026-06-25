@@ -36,7 +36,7 @@ fun WorkoutsScreen(
     viewModel: WorkoutsViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("MY SPLIT", "ALL SPLITS", "EXERCISES")
+    val tabs = listOf("My Split", "All Splits", "Exercises")
 
     LaunchedEffect(Unit) {
         viewModel.seedWorkouts()
@@ -110,7 +110,7 @@ fun MySplitTab(viewModel: WorkoutsViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "NO ACTIVE SPLIT",
+                        "No Active Split",
                         style = MaterialTheme.typography.headlineSmall,
                         color = BrutalistColors.text,
                         fontWeight = FontWeight.Bold,
@@ -129,7 +129,7 @@ fun MySplitTab(viewModel: WorkoutsViewModel) {
             BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistLime) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        "ACTIVE SPLIT",
+                        "Active Split",
                         style = MaterialTheme.typography.labelLarge,
                         color = BrutalistLime,
                     )
@@ -259,7 +259,7 @@ fun SplitItem(split: Split, onActivate: () -> Unit) {
                     color = BrutalistBlue,
                     textColor = White,
                 ) {
-                    Text("ACTIVATE", style = MaterialTheme.typography.labelLarge)
+                    Text("Activate", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -275,7 +275,7 @@ fun CreateSplitDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "CREATE NEW SPLIT",
+                "Create New Split",
                 style = MaterialTheme.typography.labelLarge,
             )
         },
@@ -292,12 +292,12 @@ fun CreateSplitDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
                 onClick = { onCreate(name) },
                 color = BrutalistLime,
             ) {
-                Text("CREATE", style = MaterialTheme.typography.labelLarge)
+                Text("Create", style = MaterialTheme.typography.labelLarge)
             }
         },
         dismissButton = {
             BrutalistOutlinedButton(onClick = onDismiss) {
-                Text("CANCEL", style = MaterialTheme.typography.labelLarge)
+                Text("Cancel", style = MaterialTheme.typography.labelLarge)
             }
         },
     )
@@ -354,7 +354,7 @@ fun ExercisesTab(viewModel: WorkoutsViewModel) {
                 BrutalistFilterChip(
                     selected = selectedCategory == null,
                     onClick = { viewModel.onCategorySelected(null) },
-                    label = { Text("ALL", style = MaterialTheme.typography.labelMedium) },
+                    label = { Text("All", style = MaterialTheme.typography.labelMedium) },
                 )
             }
             items(MuscleGroup.values()) { group ->
@@ -482,7 +482,7 @@ fun ExerciseItem(workout: Workout, onAddClick: () -> Unit) {
             text = { Text(workout.description.ifEmpty { "No description available." }) },
             confirmButton = {
                 BrutalistButton(onClick = { showInfoDialog = false }) {
-                    Text("GOT IT")
+                    Text("Got It")
                 }
             }
         )
@@ -501,12 +501,12 @@ fun AddToSplitDialog(
 ) {
     var selectedSplit by remember { mutableStateOf(splits.firstOrNull()) }
     var selectedDay by remember { mutableStateOf(1) }
-    val days = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+    val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
     if (splits.isEmpty()) {
         BrutalistDialog(
             onDismissRequest = onDismiss,
-            title = { Text("NO SPLITS FOUND", style = MaterialTheme.typography.labelLarge) },
+            title = { Text("No Splits Found", style = MaterialTheme.typography.labelLarge) },
             text = {
                 Text(
                     "Please create a split first in the 'ALL SPLITS' tab.",
@@ -602,12 +602,12 @@ fun AddToSplitDialog(
                 onClick = { selectedSplit?.let { onConfirm(it.id, selectedDay) } },
                 color = BrutalistLime,
             ) {
-                Text("ADD", style = MaterialTheme.typography.labelLarge)
+                Text("Add", style = MaterialTheme.typography.labelLarge)
             }
         },
         dismissButton = {
             BrutalistOutlinedButton(onClick = onDismiss) {
-                Text("CANCEL", style = MaterialTheme.typography.labelLarge)
+                Text("Cancel", style = MaterialTheme.typography.labelLarge)
             }
         },
     )

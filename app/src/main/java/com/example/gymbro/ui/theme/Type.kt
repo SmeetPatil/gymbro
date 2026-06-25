@@ -8,135 +8,146 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.gymbro.R
 
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.text.googlefonts.Font
+
 // ── Bundled Fonts ──────────────────────────────────────────────────
 
 val SpaceMono = FontFamily(
-    Font(R.font.space_mono_regular, FontWeight.Normal),
-    Font(R.font.space_mono_bold, FontWeight.Bold),
+    androidx.compose.ui.text.font.Font(R.font.space_mono_regular, FontWeight.Normal),
+    androidx.compose.ui.text.font.Font(R.font.space_mono_bold, FontWeight.Bold),
 )
 
-val SpaceGrotesk = FontFamily(
-    Font(R.font.space_grotesk, FontWeight.Normal),
-    Font(R.font.space_grotesk, FontWeight.Medium),
-    Font(R.font.space_grotesk, FontWeight.Bold),
+val provider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
+
+val fontName = GoogleFont("Inter")
+
+val InterFontFamily = FontFamily(
+    Font(googleFont = fontName, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = fontName, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = fontName, fontProvider = provider, weight = FontWeight.Bold)
 )
 
 // ── Neo-Brutalist Typography Scale ─────────────────────────────────
 
 val Typography = Typography(
 
-    // Display — huge monospace for hero numbers
+    // Display
     displayLarge = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = (-0.25).sp,
     ),
     displayMedium = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 45.sp,
         lineHeight = 52.sp,
         letterSpacing = 0.sp,
     ),
     displaySmall = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 36.sp,
         lineHeight = 44.sp,
         letterSpacing = 0.sp,
     ),
 
-    // Headline — bold monospace, used for section titles
+    // Headline
     headlineLarge = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
         lineHeight = 40.sp,
-        letterSpacing = 1.sp,
+        letterSpacing = 0.sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
         lineHeight = 36.sp,
-        letterSpacing = 1.sp,
+        letterSpacing = 0.sp,
     ),
     headlineSmall = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
         lineHeight = 32.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.sp,
     ),
 
-    // Title — grotesk for subsections
+    // Title
     titleLarge = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 18.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.15.sp,
     ),
     titleSmall = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
     ),
 
-    // Body — grotesk for readable content
+    // Body
     bodyLarge = TextStyle(
-        fontFamily = SpaceGrotesk,
-        fontWeight = FontWeight.Normal,
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.1.sp,
     ),
     bodyMedium = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.25.sp,
     ),
     bodySmall = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp,
     ),
 
-    // Label — monospace for tags, chips, labels
+    // Label
     labelLarge = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 1.sp,
+        letterSpacing = 0.1.sp,
     ),
     labelMedium = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.1.sp,
     ),
     labelSmall = TextStyle(
-        fontFamily = SpaceMono,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.1.sp,
     ),
 )
