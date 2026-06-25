@@ -1,0 +1,133 @@
+package com.example.gymbro.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.gymbro.ui.calendar.CalendarScreen
+import com.example.gymbro.ui.health.HealthScreen
+import com.example.gymbro.ui.workouts.WorkoutsScreen
+import com.example.gymbro.ui.theme.*
+
+sealed class Screen(
+    val route: String,
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+) {
+    object Calendar : Screen("calendar", "CALENDAR", Icons.Default.CalendarMonth)
+    object Workouts : Screen("workouts", "WORKOUTS", Icons.Default.FitnessCenter)
+    object Health   : Screen("health",   "HEALTH",   Icons.Default.HealthAndSafety)
+}
+
+@Composable
+fun MainScreen() {
+    val navController = rememberNavController()
+    val items = listOf(Screen.Calendar, Screen.Workouts, Screen.Health)
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            BrutalistBottomBar(navController, items)
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController,
+            startDestination = Screen.Calendar.route,
+            Modifier.padding(innerPadding),
+        ) {
+            composable(Screen.Calendar.route) { CalendarScreen() }
+            composable(Screen.Workouts.route) { WorkoutsScreen() }
+            composable(Screen.Health.route)   { HealthScreen()   }
+        }
+    }
+}
+
+@Composable
+private fun BrutalistBottomBar(
+    navController: androidx.navigation.NavHostController,
+    items: List<Screen>,
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val borderColor = BrutalistColors.border
+    val navBg = BrutalistColors.navBar
+
+    Column {
+        // Thick top border
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(borderColor)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(navBg)
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            items.forEach { screen ->
+                val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                        .then(
+                            if (selected) Modifier
+                                .padding(horizontal = 8.dp)
+                                .border(2.dp, borderColor, BrutalistShape)
+                                .background(BrutalistYellow.copy(alpha = 0.25f), BrutalistShape)
+                                .padding(vertical = 6.dp)
+                            else Modifier.padding(vertical = 6.dp, horizontal = 8.dp)
+                        ),
+                ) {
+                    Icon(
+                        screen.icon,
+                        contentDescription = screen.label,
+                        tint = if (selected) BrutalistColors.text else BrutalistColors.textMuted,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = screen.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selected) BrutalistColors.text else BrutalistColors.textMuted,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+    }
+}
