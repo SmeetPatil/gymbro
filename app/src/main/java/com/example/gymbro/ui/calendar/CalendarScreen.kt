@@ -1,13 +1,16 @@
 package com.example.gymbro.ui.calendar
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +36,7 @@ fun CalendarScreen(
 ) {
     val currentMonth by viewModel.currentMonth.collectAsState()
     val attendanceMap by viewModel.attendanceMap.collectAsState()
+    val attendanceStats by viewModel.attendanceStats.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
 
@@ -40,6 +44,7 @@ fun CalendarScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         // ── Month Header ───────────────────────────────────────────
         BrutalistCard(modifier = Modifier.fillMaxWidth()) {
@@ -84,20 +89,30 @@ fun CalendarScreen(
 
         // ── Calendar Grid ──────────────────────────────────────────
         val days = viewModel.getDaysInMonth(currentMonth)
-        LazyVerticalGrid(columns = GridCells.Fixed(7)) {
-            items(days) { date ->
-                if (date != null) {
-                    val attendance = attendanceMap[date]
-                    DayCell(
-                        date = date,
-                        attendance = attendance,
-                        onClick = {
-                            selectedDate = date
-                            showDialog = true
-                        },
-                    )
-                } else {
-                    Spacer(modifier = Modifier.size(44.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            days.chunked(7).forEach { week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEach { date ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (date != null) {
+                                val attendance = attendanceMap[date]
+                                DayCell(
+                                    date = date,
+                                    attendance = attendance,
+                                    onClick = {
+                                        selectedDate = date
+                                        showDialog = true
+                                    }
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.padding(4.dp).aspectRatio(1f))
+                            }
+                        }
+                    }
+                    // Fill remaining empty slots if the last week is incomplete
+                    for (i in 0 until (7 - week.size)) {
+                        Spacer(modifier = Modifier.weight(1f).padding(4.dp).aspectRatio(1f))
+                    }
                 }
             }
         }
@@ -105,17 +120,12 @@ fun CalendarScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // ── Legend ─────────────────────────────────────────────────
-        BrutalistCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Legend",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = BrutalistColors.text,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            BrutalistCard(modifier = Modifier.fillMaxWidth(0.9f)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     LegendItem(BrutalistLime, "Gym")
                     LegendItem(BrutalistRed, "Skip")
@@ -124,6 +134,9 @@ fun CalendarScreen(
                 }
             }
         }
+
+        AttendancePieChart(stats = attendanceStats, currentMonth = currentMonth)
+        Spacer(modifier = Modifier.height(32.dp))
     }
 
     if (showDialog && selectedDate != null) {
@@ -155,7 +168,7 @@ fun DayCell(
     }
 
     val textColor = when (attendance?.status) {
-        AttendanceStatus.WENT, AttendanceStatus.SKIPPED, AttendanceStatus.EXCUSED ->
+        AttendanceStatus.WENT, AttendanceStatus.SKIPPED, AttendanceStatus.EXCUSED, AttendanceStatus.REST_DAY ->
             BrutalistLightText
         else -> BrutalistColors.text
     }
@@ -345,4 +358,137 @@ fun isValidExcuse(reason: SkipReason): Boolean {
 
 fun String.capitalize() = replaceFirstChar {
     if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+}
+
+// ── Attendance Graph ───────────────────────────────────────────────
+
+@Composable
+fun AttendancePieChart(stats: AttendanceStats, currentMonth: YearMonth) {
+    if (stats.isFutureMonth) return
+
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(currentMonth) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
+    }
+    
+    val total = stats.totalDays.toFloat()
+    if (total == 0f) return
+
+    val gymAngle = (stats.went / total) * 360f
+    val skippedAngle = (stats.skipped / total) * 360f
+    val excusedAngle = (stats.excused / total) * 360f
+    val restAngle = (stats.restDay / total) * 360f
+    val missingAngle = (stats.missing / total) * 360f
+    
+    val missingColor = BrutalistColors.card
+    val borderColor = BrutalistColors.border
+    val cardColor = BrutalistColors.card
+    val textColor = BrutalistColors.text
+    val textMutedColor = BrutalistColors.textMuted
+    
+    // Drawing angles
+    val angles = listOf(
+        gymAngle to BrutalistLime,
+        skippedAngle to BrutalistRed,
+        excusedAngle to BrutalistPurple,
+        restAngle to BrutalistBlue,
+        missingAngle to missingColor
+    )
+    
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(160.dp)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 32.dp.toPx()
+                val radius = size.minDimension / 2 - strokeWidth / 2
+                
+                var startAngle = -90f
+                
+                // Draw background circle first
+                drawCircle(
+                    color = cardColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+                    radius = radius
+                )
+                // Draw border for the entire ring
+                drawCircle(
+                    color = borderColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth + 4.dp.toPx()),
+                    radius = radius
+                )
+
+                for ((sweep, color) in angles) {
+                    if (sweep > 0f) {
+                        val animatedSweep = sweep * progress.value
+                        drawArc(
+                            color = color,
+                            startAngle = startAngle,
+                            sweepAngle = animatedSweep,
+                            useCenter = false,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+                        )
+                        startAngle += sweep // important: advance startAngle by the full sweep
+                    }
+                }
+            }
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${((stats.totalLogged / total) * 100).toInt()}%",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = "Logged",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = textMutedColor
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        AttendanceQuips(stats, textColor)
+    }
+}
+
+@Composable
+fun AttendanceQuips(stats: AttendanceStats, textColor: androidx.compose.ui.graphics.Color) {
+    val total = stats.totalDays.toFloat()
+    if (total == 0f) return
+
+    val gymPct = stats.went / total
+    val skippedPct = stats.skipped / total
+    val restPct = stats.restDay / total
+    val missingPct = stats.missing / total
+
+    val text = when {
+        missingPct > 0.5f -> "You haven't logged much for this month. Start tracking!"
+        skippedPct > 0.3f -> "Don't let the skipped days pile up! Let's get back on track."
+        gymPct > 0.7f -> "Unstoppable! You're crushing it."
+        gymPct > 0.4f -> "Consistency is key. Keep showing up!"
+        restPct > 0.3f -> "Lots of rest. Make sure you're balancing it with action!"
+        else -> "Keep at it! Every day counts."
+    }
+
+    BrutalistCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("💡", fontSize = 24.sp)
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+        }
+    }
 }

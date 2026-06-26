@@ -18,13 +18,30 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gymbro.ui.theme.*
+import com.example.gymbro.R
+import android.widget.Toast
 import java.time.format.DateTimeFormatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.HealthConnectClient
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.Icons
 
 @Composable
 fun HealthScreen(
@@ -35,16 +52,32 @@ fun HealthScreen(
     val bmi by viewModel.bmi.collectAsState()
     val permissionsGranted by viewModel.permissionsGranted.collectAsState()
 
+    val calories by viewModel.caloriesToday.collectAsState()
+    val distance by viewModel.distanceToday.collectAsState()
+    val heartRate by viewModel.heartRate.collectAsState()
+    val sdkStatus by viewModel.sdkStatus.collectAsState()
+    val context = LocalContext.current
+
+    val requiredPermissions = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getWritePermission(StepsRecord::class),
+        HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getWritePermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getWritePermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getWritePermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+    )
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
-        if (granted.containsAll(setOf(HealthPermission.getReadPermission(StepsRecord::class)))) {
-            viewModel.checkPermissions()
-        }
+        viewModel.checkPermissions()
     }
 
-    var weightInput by remember { mutableStateOf("") }
-    var heightInput by remember { mutableStateOf("") }
+    // Inputs removed, BMI now uses UserProfileManager
 
     LaunchedEffect(Unit) {
         viewModel.checkPermissions()
@@ -59,12 +92,19 @@ fun HealthScreen(
         // ── Title ──────────────────────────────────────────────────
         item {
             Column {
-                Text(
-                    text = "Health Dashboard",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = BrutalistColors.text,
-                    fontWeight = FontWeight.Bold,
-                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Health Dashboard",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = BrutalistColors.text,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (permissionsGranted) {
+                        IconButton(onClick = { viewModel.fetchData() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Data", tint = BrutalistColors.text)
+                        }
+                    }
+                }
                 Spacer(Modifier.height(4.dp))
                 Box(
                     Modifier
@@ -128,86 +168,94 @@ fun HealthScreen(
                         )
                     }
 
+                    
+                    if (permissionsGranted) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        BrutalistDivider()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                            MetricItem(icon = Icons.Default.LocalFireDepartment, label = "Calories", value = "$calories kcal")
+                            MetricItem(icon = Icons.Default.DirectionsWalk, label = "Distance", value = "${String.format("%.1f", distance / 1000.0)} km")
+                            MetricItem(icon = Icons.Default.Favorite, label = "Heart Rate", value = if (heartRate > 0) "$heartRate bpm" else "--")
+                        }
+                    }
+
                     if (!permissionsGranted) {
                         Spacer(modifier = Modifier.height(16.dp))
                         BrutalistDivider()
                         Spacer(modifier = Modifier.height(12.dp))
-                        BrutalistButton(
-                            onClick = {
-                                permissionLauncher.launch(
-                                    setOf(HealthPermission.getReadPermission(StepsRecord::class))
-                                )
-                            },
-                            color = BrutalistBlue,
-                            textColor = White,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                "Connect Health Data",
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                        
+                        if (sdkStatus == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED || sdkStatus == HealthConnectClient.SDK_UNAVAILABLE) {
+                            BrutalistButton(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.apps.healthdata"))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
+                                color = BrutalistPink,
+                                textColor = White,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Install Health Connect", style = MaterialTheme.typography.labelLarge)
+                            }
+                        } else {
+                            BrutalistButton(
+                                onClick = {
+                                    try {
+                                        Toast.makeText(context, "Launching Google Fit...", Toast.LENGTH_SHORT).show()
+                                        permissionLauncher.launch(requiredPermissions)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                        e.printStackTrace()
+                                    }
+                                },
+                                color = BrutalistBlue,
+                                textColor = White,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(painter = painterResource(id = R.drawable.ic_google_fit), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(24.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Connect Google Fit",
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            TextButton(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Cannot open settings: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            ) {
+                                Text("Open Settings Manually", color = BrutalistBlue, style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
             }
         }
 
-        // ── BMI Calculator ─────────────────────────────────────────
+        // ── BMI Chart ─────────────────────────────────────────
         item {
             BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistPink) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "BMI Calculator",
+                        "Body Mass Index",
                         style = MaterialTheme.typography.labelLarge,
                         color = BrutalistPink,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        BrutalistTextField(
-                            value = weightInput,
-                            onValueChange = { weightInput = it },
-                            label = { Text("Weight (kg)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
-                        )
-                        BrutalistTextField(
-                            value = heightInput,
-                            onValueChange = { heightInput = it },
-                            label = { Text("Height (cm)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    BrutalistButton(
-                        onClick = {
-                            val w = weightInput.toFloatOrNull()
-                            val h = heightInput.toFloatOrNull()
-                            if (w != null && h != null) {
-                                viewModel.calculateBMI(w, h)
-                                viewModel.logWeight(w)
-                            }
-                        },
-                        color = BrutalistPink,
-                        textColor = White,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            "CALCULATE & LOG WEIGHT",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-
+                    
                     if (bmi > 0) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        BrutalistDivider()
-                        Spacer(modifier = Modifier.height(12.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "YOUR BMI: ",
@@ -226,44 +274,26 @@ fun HealthScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = BrutalistColors.textMuted,
                         )
+                    } else {
+                        Text(
+                            "Set up your profile to see your BMI.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrutalistColors.textMuted,
+                        )
                     }
                 }
             }
         }
+    }
+}
 
-        // ── Weight History ─────────────────────────────────────────
-        item {
-            Text(
-                "Weight History",
-                style = MaterialTheme.typography.labelLarge,
-                color = BrutalistColors.text,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        items(weightHistory) { log ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    log.date.format(DateTimeFormatter.ISO_DATE),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = BrutalistColors.text,
-                    fontFamily = SpaceMono,
-                )
-                Text(
-                    "${log.weightKg} kg",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = BrutalistLime,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceMono,
-                )
-            }
-            BrutalistDivider()
-        }
+@Composable
+fun MetricItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(imageVector = icon, contentDescription = label, tint = BrutalistColors.textMuted)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(value, style = MaterialTheme.typography.titleMedium, color = BrutalistColors.text, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = BrutalistColors.textMuted)
     }
 }
 

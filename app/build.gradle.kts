@@ -83,8 +83,16 @@ dependencies {
     // Icons
     implementation("androidx.compose.material:material-icons-extended")
 
+    // Drag and Drop Reordering
+    implementation("org.burnoutcrew.composereorderable:reorderable:0.9.6")
+
     // Google Fonts
     implementation("androidx.compose.ui:ui-text-google-fonts:1.5.4")
+
+    // Gson for Backup Serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+
+
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

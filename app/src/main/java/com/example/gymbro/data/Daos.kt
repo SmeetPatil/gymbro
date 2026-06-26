@@ -31,14 +31,26 @@ interface WorkoutDao {
 
 @Dao
 interface SplitDao {
-    @Query("SELECT * FROM splits")
+    @Query("SELECT * FROM splits ORDER BY orderIndex ASC")
     fun getAllSplits(): Flow<List<Split>>
+
+    @Query("SELECT * FROM splits")
+    suspend fun getAllSplitsSync(): List<Split>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplits(splits: List<Split>)
 
     @Query("SELECT * FROM splits WHERE isActive = 1 LIMIT 1")
     fun getActiveSplit(): Flow<Split?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSplit(split: Split): Long
+
+    @androidx.room.Update
+    suspend fun updateSplits(splits: List<Split>)
+
+    @Query("DELETE FROM splits WHERE id = :id")
+    suspend fun deleteSplit(id: Int)
 
     @Query("UPDATE splits SET isActive = 0")
     suspend fun deactivateAllSplits()
@@ -54,6 +66,12 @@ interface SplitDao {
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSplitDay(splitDay: SplitDay)
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplitDays(splitDays: List<SplitDay>)
+
+    @Query("SELECT * FROM split_days")
+    suspend fun getAllSplitDaysSync(): List<SplitDay>
 
     @Query("SELECT * FROM split_days WHERE splitId = :splitId AND dayOfWeek = :dayOfWeek")
     suspend fun getWorkoutsForSplitDay(splitId: Int, dayOfWeek: Int): List<SplitDay>
@@ -61,6 +79,16 @@ interface SplitDao {
     @Transaction
     @Query("SELECT * FROM workouts WHERE id IN (SELECT workoutId FROM split_days WHERE splitId = :splitId AND dayOfWeek = :dayOfWeek)")
     fun getWorkoutsForDay(splitId: Int, dayOfWeek: Int): Flow<List<Workout>>
+
+    @Transaction
+    @Query("SELECT * FROM split_days WHERE splitId = :splitId ORDER BY rowid ASC")
+    fun getSplitDaysWithWorkouts(splitId: Int): Flow<List<SplitDayWithWorkout>>
+
+    @Query("UPDATE split_days SET sets = :sets, repRange = :repRange WHERE splitId = :splitId AND dayOfWeek = :dayOfWeek AND workoutId = :workoutId")
+    suspend fun updateSplitDaySetsAndReps(splitId: Int, dayOfWeek: Int, workoutId: Int, sets: Int, repRange: String)
+
+    @Query("DELETE FROM split_days WHERE splitId = :splitId AND dayOfWeek = :dayOfWeek AND workoutId = :workoutId")
+    suspend fun deleteSplitDayWorkout(splitId: Int, dayOfWeek: Int, workoutId: Int)
 
     @Query("UPDATE split_days SET workoutId = :newId WHERE workoutId = :oldId")
     suspend fun remapWorkoutId(oldId: Int, newId: Int)
@@ -70,6 +98,12 @@ interface SplitDao {
 interface AttendanceDao {
     @Query("SELECT * FROM attendance WHERE date = :date")
     fun getAttendance(date: LocalDate): Flow<Attendance?>
+
+    @Query("SELECT * FROM attendance")
+    suspend fun getAllAttendanceSync(): List<Attendance>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttendances(attendances: List<Attendance>)
 
     @Query("SELECT * FROM attendance WHERE date BETWEEN :startDate AND :endDate")
     fun getAttendanceRange(startDate: LocalDate, endDate: LocalDate): Flow<List<Attendance>>
@@ -82,6 +116,12 @@ interface AttendanceDao {
 interface WeightDao {
     @Query("SELECT * FROM weight_logs ORDER BY date DESC")
     fun getWeightHistory(): Flow<List<WeightLog>>
+
+    @Query("SELECT * FROM weight_logs")
+    suspend fun getAllWeightsSync(): List<WeightLog>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWeights(weights: List<WeightLog>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun logWeight(log: WeightLog)

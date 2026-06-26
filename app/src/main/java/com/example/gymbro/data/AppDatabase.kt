@@ -56,9 +56,22 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE split_days ADD COLUMN sets INTEGER")
+        database.execSQL("ALTER TABLE split_days ADD COLUMN repRange TEXT")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE splits ADD COLUMN orderIndex INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [Workout::class, Split::class, SplitDay::class, Attendance::class, WeightLog::class],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

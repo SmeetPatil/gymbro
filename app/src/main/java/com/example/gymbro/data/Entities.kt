@@ -21,14 +21,26 @@ data class Workout(
 data class Split(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    val isActive: Boolean = false
+    val isActive: Boolean = false,
+    val orderIndex: Int = 0
 )
 
 @Entity(tableName = "split_days", primaryKeys = ["splitId", "dayOfWeek", "workoutId"])
 data class SplitDay(
     val splitId: Int,
     val dayOfWeek: Int, // 1 = Monday, 7 = Sunday
-    val workoutId: Int
+    val workoutId: Int,
+    val sets: Int? = null,
+    val repRange: String? = null
+)
+
+data class SplitDayWithWorkout(
+    @androidx.room.Embedded val splitDay: SplitDay,
+    @androidx.room.Relation(
+        parentColumn = "workoutId",
+        entityColumn = "id"
+    )
+    val workout: Workout
 )
 
 enum class AttendanceStatus {

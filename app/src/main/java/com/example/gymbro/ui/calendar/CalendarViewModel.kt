@@ -8,9 +8,12 @@ import com.example.gymbro.data.AttendanceStatus
 import com.example.gymbro.data.SkipReason
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -26,6 +29,45 @@ class CalendarViewModel @Inject constructor(
 
     private val _attendanceMap = MutableStateFlow<Map<LocalDate, Attendance>>(emptyMap())
     val attendanceMap: StateFlow<Map<LocalDate, Attendance>> = _attendanceMap.asStateFlow()
+
+    val attendanceStats: StateFlow<AttendanceStats> = combine(_currentMonth, _attendanceMap) { month, map ->
+        val now = LocalDate.now()
+        val currentYearMonth = YearMonth.now()
+        val isFutureMonth = month.isAfter(currentYearMonth)
+        
+        val totalDays = when {
+            isFutureMonth -> 0
+            month == currentYearMonth -> now.dayOfMonth
+            else -> month.lengthOfMonth()
+        }
+
+        var wentCount = 0
+        var skippedCount = 0
+        var excusedCount = 0
+        var restCount = 0
+
+        // Only count up to `totalDays`
+        for (i in 1..totalDays) {
+            val date = month.atDay(i)
+            val att = map[date]
+            when (att?.status) {
+                AttendanceStatus.WENT -> wentCount++
+                AttendanceStatus.SKIPPED -> skippedCount++
+                AttendanceStatus.EXCUSED -> excusedCount++
+                AttendanceStatus.REST_DAY -> restCount++
+                null -> {}
+            }
+        }
+
+        AttendanceStats(
+            totalDays = totalDays,
+            went = wentCount,
+            skipped = skippedCount,
+            excused = excusedCount,
+            restDay = restCount,
+            isFutureMonth = isFutureMonth
+        )
+    }.stateIn(viewModelScope, SharingStarted.Lazily, AttendanceStats())
 
     init {
         loadAttendance()
@@ -77,4 +119,16 @@ class CalendarViewModel @Inject constructor(
         
         return days
     }
+}
+
+data class AttendanceStats(
+    val totalDays: Int = 0,
+    val went: Int = 0,
+    val skipped: Int = 0,
+    val excused: Int = 0,
+    val restDay: Int = 0,
+    val isFutureMonth: Boolean = false
+) {
+    val totalLogged: Int get() = went + skipped + excused + restDay
+    val missing: Int get() = (totalDays - totalLogged).coerceAtLeast(0)
 }

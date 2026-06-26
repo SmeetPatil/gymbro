@@ -98,6 +98,7 @@ fun BrutalistButton(
     shadowOffset: Dp = 4.dp,
     shape: Shape = RectangleShape,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+    enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
     val borderColor = BrutalistColors.border
@@ -108,21 +109,27 @@ fun BrutalistButton(
         modifier = modifier
             .padding(end = shadowOffset, bottom = shadowOffset)
             .drawBehind {
-                drawRect(
-                    color = shadowColor,
-                    topLeft = Offset(shadowOffset.toPx(), shadowOffset.toPx()),
-                    size = size,
-                )
+                if (enabled) {
+                    drawRect(
+                        color = shadowColor,
+                        topLeft = Offset(shadowOffset.toPx(), shadowOffset.toPx()),
+                        size = size,
+                    )
+                }
             },
+        enabled = enabled,
         shape = shape,
         colors = ButtonDefaults.buttonColors(
             containerColor = color,
             contentColor = textColor,
+            disabledContainerColor = color.copy(alpha = 0.5f),
+            disabledContentColor = textColor.copy(alpha = 0.5f)
         ),
         border = BorderStroke(2.dp, borderColor),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 0.dp,
             pressedElevation = 0.dp,
+            disabledElevation = 0.dp,
         ),
         contentPadding = contentPadding,
         content = content,
