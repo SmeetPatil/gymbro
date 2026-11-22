@@ -80,9 +80,25 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """CREATE TABLE IF NOT EXISTS `workout_logs` (
+                `date` TEXT NOT NULL,
+                `splitId` INTEGER NOT NULL,
+                `workoutId` INTEGER NOT NULL,
+                `setNumber` INTEGER NOT NULL,
+                `reps` INTEGER NOT NULL,
+                `weightKg` REAL NOT NULL,
+                PRIMARY KEY(`date`, `splitId`, `workoutId`, `setNumber`)
+            )"""
+        )
+    }
+}
+
 @Database(
-    entities = [Workout::class, Split::class, SplitDay::class, Attendance::class, WeightLog::class],
-    version = 5,
+    entities = [Workout::class, Split::class, SplitDay::class, Attendance::class, WeightLog::class, WorkoutLog::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -91,4 +107,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun splitDao(): SplitDao
     abstract fun attendanceDao(): AttendanceDao
     abstract fun weightDao(): WeightDao
+    abstract fun workoutLogDao(): WorkoutLogDao
 }

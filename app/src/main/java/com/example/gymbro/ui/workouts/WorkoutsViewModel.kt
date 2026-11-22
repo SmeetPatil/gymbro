@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.time.LocalDate
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,6 +18,7 @@ import org.json.JSONArray
 class WorkoutsViewModel @Inject constructor(
     private val workoutDao: WorkoutDao,
     private val splitDao: SplitDao,
+    private val workoutLogDao: WorkoutLogDao,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -126,6 +128,75 @@ class WorkoutsViewModel @Inject constructor(
         list.add(workout)
         current[day] = list
         _newSplitDays.value = current
+    }
+
+    // ── Workout Logging ──────────────────────────────────────────────
+
+    private val _selectedLogDate = MutableStateFlow(LocalDate.now())
+    val selectedLogDate = _selectedLogDate.asStateFlow()
+
+    fun setLogDate(date: LocalDate) {
+        _selectedLogDate.value = date
+    }
+
+    /** Today's exercises from the active split, based on the selected log date's day-of-week. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val todaysSplitDaysWithWorkouts: StateFlow<List<SplitDayWithWorkout>> =
+        combine(activeSplit, _selectedLogDate) { split, date -> Pair(split, date) }
+            .flatMapLatest { (split, date) ->
+                if (split == null) flowOf(emptyList())
+                else {
+                    val dayOfWeek = date.dayOfWeek.value // 1=Monday..7=Sunday
+                    splitDao.getSplitDaysWithWorkouts(split.id).map { allDays ->
+                        allDays.filter { it.splitDay.dayOfWeek == dayOfWeek }
+                    }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** All workout logs for the selected date + active split. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val todaysLogs: StateFlow<List<WorkoutLog>> =
+        combine(activeSplit, _selectedLogDate) { split, date -> Pair(split, date) }
+            .flatMapLatest { (split, date) ->
+                if (split == null) flowOf(emptyList())
+                else workoutLogDao.getLogsForDay(date, split.id)
+            }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    fun logSet(date: LocalDate, splitId: Int, workoutId: Int, setNumber: Int, reps: Int, weightKg: Float) {
+        viewModelScope.launch {
+            workoutLogDao.insertLog(
+                WorkoutLog(
+                    date = date,
+                    splitId = splitId,
+                    workoutId = workoutId,
+                    setNumber = setNumber,
+                    reps = reps,
+                    weightKg = weightKg
+                )
+            )
+        }
+    }
+
+    fun deleteSet(date: LocalDate, splitId: Int, workoutId: Int, setNumber: Int) {
+        viewModelScope.launch {
+            workoutLogDao.deleteLog(date, splitId, workoutId, setNumber)
+        }
+    }
+
+    fun deleteExerciseLogs(date: LocalDate, splitId: Int, workoutId: Int) {
+        viewModelScope.launch {
+            workoutLogDao.deleteLogsForExercise(date, splitId, workoutId)
+        }
+    }
+
+    fun getLogsForExercise(date: LocalDate, splitId: Int, workoutId: Int): Flow<List<WorkoutLog>> {
+        return workoutLogDao.getLogsForExercise(date, splitId, workoutId)
+    }
+
+    fun getHistoryForExercise(workoutId: Int): Flow<List<WorkoutLog>> {
+        return workoutLogDao.getHistoryForExercise(workoutId)
     }
 
     // Seed data if empty and deduplicate

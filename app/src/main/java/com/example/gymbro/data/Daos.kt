@@ -151,3 +151,43 @@ interface WeightDao {
     @Query("DELETE FROM weight_logs")
     suspend fun deleteAllWeights()
 }
+
+@Dao
+interface WorkoutLogDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLog(log: WorkoutLog)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLogs(logs: List<WorkoutLog>)
+
+    @Query("SELECT * FROM workout_logs WHERE date = :date AND splitId = :splitId ORDER BY workoutId, setNumber")
+    fun getLogsForDay(date: LocalDate, splitId: Int): Flow<List<WorkoutLog>>
+
+    @Query("SELECT * FROM workout_logs WHERE date = :date AND splitId = :splitId AND workoutId = :workoutId ORDER BY setNumber")
+    fun getLogsForExercise(date: LocalDate, splitId: Int, workoutId: Int): Flow<List<WorkoutLog>>
+
+    @Query("SELECT * FROM workout_logs WHERE date = :date AND splitId = :splitId AND workoutId = :workoutId ORDER BY setNumber")
+    suspend fun getLogsForExerciseSync(date: LocalDate, splitId: Int, workoutId: Int): List<WorkoutLog>
+
+    @Query("DELETE FROM workout_logs WHERE date = :date AND splitId = :splitId AND workoutId = :workoutId AND setNumber = :setNumber")
+    suspend fun deleteLog(date: LocalDate, splitId: Int, workoutId: Int, setNumber: Int)
+
+    @Query("DELETE FROM workout_logs WHERE date = :date AND splitId = :splitId AND workoutId = :workoutId")
+    suspend fun deleteLogsForExercise(date: LocalDate, splitId: Int, workoutId: Int)
+
+    @Query("SELECT * FROM workout_logs")
+    suspend fun getAllLogsSync(): List<WorkoutLog>
+
+    @Query("DELETE FROM workout_logs")
+    suspend fun deleteAllLogs()
+
+    @Transaction
+    @Query("SELECT * FROM workout_logs WHERE date = :date AND splitId = :splitId ORDER BY workoutId, setNumber")
+    fun getLogsWithDetailsForDay(date: LocalDate, splitId: Int): Flow<List<WorkoutLogWithDetails>>
+
+    @Query("SELECT DISTINCT date FROM workout_logs ORDER BY date DESC LIMIT :limit")
+    fun getRecentLogDates(limit: Int = 30): Flow<List<LocalDate>>
+
+    @Query("SELECT * FROM workout_logs WHERE workoutId = :workoutId ORDER BY date DESC, setNumber ASC LIMIT :limit")
+    fun getHistoryForExercise(workoutId: Int, limit: Int = 50): Flow<List<WorkoutLog>>
+}

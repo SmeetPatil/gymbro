@@ -7,6 +7,7 @@ import com.example.gymbro.data.AttendanceDao
 import com.example.gymbro.data.SplitDao
 import com.example.gymbro.data.WeightDao
 import com.example.gymbro.data.WorkoutDao
+import com.example.gymbro.data.WorkoutLogDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,7 +31,8 @@ object DatabaseModule {
             com.example.gymbro.data.MIGRATION_1_2,
             com.example.gymbro.data.MIGRATION_2_3,
             com.example.gymbro.data.MIGRATION_3_4,
-            com.example.gymbro.data.MIGRATION_4_5
+            com.example.gymbro.data.MIGRATION_4_5,
+            com.example.gymbro.data.MIGRATION_5_6
         )
         .build()
     }
@@ -46,4 +48,7 @@ object DatabaseModule {
 
     @Provides
     fun provideWeightDao(db: AppDatabase): WeightDao = db.weightDao()
+
+    @Provides
+    fun provideWorkoutLogDao(db: AppDatabase): WorkoutLogDao = db.workoutLogDao()
 }

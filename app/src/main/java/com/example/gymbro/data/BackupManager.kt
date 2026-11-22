@@ -28,6 +28,7 @@ class BackupManager @Inject constructor(
             val splitDays = db.splitDao().getAllSplitDaysSync()
             val attendances = db.attendanceDao().getAllAttendanceSync()
             val weightLogs = db.weightDao().getAllWeightsSync()
+            val workoutLogs = db.workoutLogDao().getAllLogsSync()
             val profile = userProfileManager.profile.value
 
             val backupData = BackupData(
@@ -36,7 +37,8 @@ class BackupManager @Inject constructor(
                 splits = splits,
                 splitDays = splitDays,
                 attendances = attendances,
-                weightLogs = weightLogs
+                weightLogs = weightLogs,
+                workoutLogs = workoutLogs
             )
 
             val json = gson.toJson(backupData)
@@ -78,12 +80,16 @@ class BackupManager @Inject constructor(
                 db.workoutDao().deleteAllWorkouts()
                 db.attendanceDao().deleteAllAttendance()
                 db.weightDao().deleteAllWeights()
+                db.workoutLogDao().deleteAllLogs()
 
                 db.workoutDao().insertWorkouts(backupData.workouts)
                 db.splitDao().insertSplits(backupData.splits)
                 db.splitDao().insertSplitDays(backupData.splitDays)
                 db.attendanceDao().insertAttendances(backupData.attendances)
                 db.weightDao().insertWeights(backupData.weightLogs)
+                if (backupData.workoutLogs.isNotEmpty()) {
+                    db.workoutLogDao().insertLogs(backupData.workoutLogs)
+                }
             }
 
             // User profile lives in SharedPreferences, not Room — apply it only

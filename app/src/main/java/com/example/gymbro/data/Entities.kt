@@ -71,3 +71,25 @@ data class WeightLog(
     @PrimaryKey val date: LocalDate,
     val weightKg: Float
 )
+
+@Entity(
+    tableName = "workout_logs",
+    primaryKeys = ["date", "splitId", "workoutId", "setNumber"]
+)
+data class WorkoutLog(
+    val date: LocalDate,
+    val splitId: Int,
+    val workoutId: Int,
+    val setNumber: Int,     // 1-based set number
+    val reps: Int,          // actual reps performed
+    val weightKg: Float     // weight lifted in kg (0 for bodyweight)
+)
+
+data class WorkoutLogWithDetails(
+    @androidx.room.Embedded val log: WorkoutLog,
+    @androidx.room.Relation(
+        parentColumn = "workoutId",
+        entityColumn = "id"
+    )
+    val workout: Workout
+)

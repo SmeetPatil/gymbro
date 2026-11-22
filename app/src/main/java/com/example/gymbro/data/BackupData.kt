@@ -6,5 +6,6 @@ data class BackupData(
     val splits: List<Split>,
     val splitDays: List<SplitDay>,
     val attendances: List<Attendance>,
-    val weightLogs: List<WeightLog>
+    val weightLogs: List<WeightLog>,
+    val workoutLogs: List<WorkoutLog> = emptyList()
 )

@@ -36,6 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gymbro.data.MuscleGroup
 import com.example.gymbro.data.Split
 import com.example.gymbro.data.Workout
+import com.example.gymbro.data.WorkoutLog
+import com.example.gymbro.data.SplitDayWithWorkout
 import com.example.gymbro.ui.theme.*
 
 import androidx.compose.material.icons.filled.AccessibilityNew
@@ -59,6 +61,10 @@ import java.io.File
 import java.io.FileOutputStream
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 private fun shareSplit(
     context: android.content.Context,
@@ -145,7 +151,7 @@ fun WorkoutsScreen(
     viewModel: WorkoutsViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Active Split", "All Splits", "Exercises")
+    val tabs = listOf("Log Workout", "Active Split", "All Splits", "Exercises")
 
     LaunchedEffect(Unit) {
         viewModel.seedWorkouts()
@@ -198,9 +204,593 @@ fun WorkoutsScreen(
         }
 
         when (selectedTab) {
-            0 -> MySplitTab(viewModel)
-            1 -> AllSplitsTab(viewModel)
-            2 -> ExercisesTab(viewModel)
+            0 -> LogWorkoutTab(viewModel)
+            1 -> MySplitTab(viewModel)
+            2 -> AllSplitsTab(viewModel)
+            3 -> ExercisesTab(viewModel)
+        }
+    }
+}
+
+// ── Log Workout Tab ────────────────────────────────────────────────
+
+@Composable
+fun LogWorkoutTab(viewModel: WorkoutsViewModel) {
+    val activeSplit by viewModel.activeSplit.collectAsState()
+    val selectedDate by viewModel.selectedLogDate.collectAsState()
+    val todaysExercises by viewModel.todaysSplitDaysWithWorkouts.collectAsState()
+    val todaysLogs by viewModel.todaysLogs.collectAsState()
+
+    var showLogDialog by remember { mutableStateOf<SplitDayWithWorkout?>(null) }
+
+    if (activeSplit == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            BrutalistCard(modifier = Modifier.padding(32.dp)) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "No Active Split",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = BrutalistColors.text,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Set an active split to start logging workouts.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BrutalistColors.textMuted,
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    val split = activeSplit!!
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        contentPadding = PaddingValues(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // ── Date Selector ──
+        item {
+            BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistYellow) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "LOG WORKOUT",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = BrutalistYellow,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BrutalistOutlinedButton(onClick = {
+                            viewModel.setLogDate(selectedDate.minusDays(1))
+                        }) {
+                            Text("◀", color = BrutalistColors.text)
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = BrutalistColors.text,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                selectedDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy")),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BrutalistColors.textMuted
+                            )
+                        }
+
+                        BrutalistOutlinedButton(onClick = {
+                            viewModel.setLogDate(selectedDate.plusDays(1))
+                        }) {
+                            Text("▶", color = BrutalistColors.text)
+                        }
+                    }
+                    if (selectedDate != LocalDate.now()) {
+                        Spacer(Modifier.height(8.dp))
+                        BrutalistButton(
+                            onClick = { viewModel.setLogDate(LocalDate.now()) },
+                            color = BrutalistBlue,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("TODAY", color = White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Exercises for today ──
+        if (todaysExercises.isEmpty()) {
+            item {
+                BrutalistCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "REST DAY",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = BrutalistColors.textMuted,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "No exercises scheduled for ${selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())} in \"${split.name}\".",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrutalistColors.textMuted,
+                        )
+                    }
+                }
+            }
+        } else {
+            // Summary header
+            item {
+                val totalSetsLogged = todaysLogs.size
+                val totalVolume = todaysLogs.sumOf { (it.reps * it.weightKg).toDouble() }
+
+                BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistLime) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "$totalSetsLogged",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = BrutalistLime,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "SETS",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BrutalistColors.textMuted
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${todaysExercises.size}",
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = BrutalistBlue,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "EXERCISES",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BrutalistColors.textMuted
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "%.0f".format(totalVolume),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = BrutalistYellow,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "VOLUME (kg)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BrutalistColors.textMuted
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Exercise cards
+            items(todaysExercises) { splitDayWithWorkout ->
+                val exercise = splitDayWithWorkout.workout
+                val plannedSets = splitDayWithWorkout.splitDay.sets ?: 0
+                val plannedRepRange = splitDayWithWorkout.splitDay.repRange ?: ""
+                val logsForExercise = todaysLogs.filter { it.workoutId == exercise.id }
+
+                LogExerciseCard(
+                    workout = exercise,
+                    plannedSets = plannedSets,
+                    plannedRepRange = plannedRepRange,
+                    logs = logsForExercise,
+                    onLogSetClick = { showLogDialog = splitDayWithWorkout }
+                )
+            }
+        }
+    }
+
+    // Log set dialog
+    showLogDialog?.let { splitDayWithWorkout ->
+        LogSetDialog(
+            workout = splitDayWithWorkout.workout,
+            splitId = split.id,
+            date = selectedDate,
+            existingLogs = todaysLogs.filter { it.workoutId == splitDayWithWorkout.workout.id },
+            plannedSets = splitDayWithWorkout.splitDay.sets ?: 3,
+            plannedRepRange = splitDayWithWorkout.splitDay.repRange ?: "",
+            onDismiss = { showLogDialog = null },
+            onLogSet = { setNumber, reps, weight ->
+                viewModel.logSet(selectedDate, split.id, splitDayWithWorkout.workout.id, setNumber, reps, weight)
+            },
+            onDeleteSet = { setNumber ->
+                viewModel.deleteSet(selectedDate, split.id, splitDayWithWorkout.workout.id, setNumber)
+            }
+        )
+    }
+}
+
+// ── Log Exercise Card ──────────────────────────────────────────────
+
+@Composable
+fun LogExerciseCard(
+    workout: Workout,
+    plannedSets: Int,
+    plannedRepRange: String,
+    logs: List<WorkoutLog>,
+    onLogSetClick: () -> Unit
+) {
+    val completedSets = logs.size
+    val isComplete = plannedSets > 0 && completedSets >= plannedSets
+    val accentColor = when {
+        isComplete -> BrutalistLime
+        completedSets > 0 -> BrutalistYellow
+        else -> null
+    }
+
+    BrutalistCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onLogSetClick() },
+        accentColor = accentColor
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Exercise header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .border(2.dp, BrutalistColors.border, CircleShape)
+                        .background(
+                            if (isComplete) BrutalistLime.copy(alpha = 0.2f)
+                            else BrutalistBlue.copy(alpha = 0.15f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isComplete) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Complete",
+                            tint = BrutalistLime,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        MuscleGroupIcon(
+                            muscleGroup = workout.muscleGroup,
+                            tint = BrutalistBlue,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        workout.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = BrutalistColors.text,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (plannedSets > 0) {
+                        Text(
+                            "$completedSets / $plannedSets sets  •  $plannedRepRange reps",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isComplete) BrutalistLime else BrutalistColors.textMuted,
+                        )
+                    } else {
+                        Text(
+                            "$completedSets sets logged",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BrutalistColors.textMuted,
+                        )
+                    }
+                }
+                // Progress indicator
+                if (plannedSets > 0) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (isComplete) BrutalistLime else BrutalistYellow,
+                                BrutalistShape
+                            )
+                            .border(2.dp, BrutalistColors.border, BrutalistShape)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            "$completedSets/$plannedSets",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Logged sets detail
+            if (logs.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                BrutalistDivider()
+                Spacer(Modifier.height(8.dp))
+
+                logs.forEach { log ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Set ${log.setNumber}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BrutalistColors.textMuted,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "${log.reps} reps",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BrutalistColors.text
+                        )
+                        Text(
+                            if (log.weightKg > 0) "%.1f kg".format(log.weightKg) else "BW",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BrutalistYellow,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Log Set Dialog ─────────────────────────────────────────────────
+
+@Composable
+fun LogSetDialog(
+    workout: Workout,
+    splitId: Int,
+    date: LocalDate,
+    existingLogs: List<WorkoutLog>,
+    plannedSets: Int,
+    plannedRepRange: String,
+    onDismiss: () -> Unit,
+    onLogSet: (setNumber: Int, reps: Int, weight: Float) -> Unit,
+    onDeleteSet: (setNumber: Int) -> Unit
+) {
+    val nextSetNumber = (existingLogs.maxOfOrNull { it.setNumber } ?: 0) + 1
+    var repsInput by remember { mutableStateOf("") }
+    var weightInput by remember { mutableStateOf("") }
+
+    // Pre-fill from last set if available
+    LaunchedEffect(existingLogs) {
+        if (existingLogs.isNotEmpty()) {
+            val lastLog = existingLogs.last()
+            if (repsInput.isBlank()) repsInput = lastLog.reps.toString()
+            if (weightInput.isBlank()) weightInput = if (lastLog.weightKg > 0) lastLog.weightKg.toString() else ""
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        BrutalistCard(modifier = Modifier.fillMaxWidth()) {
+            LazyColumn(modifier = Modifier.padding(20.dp)) {
+                // Header
+                item {
+                    Text(
+                        workout.name.uppercase(),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = BrutalistColors.text,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (plannedSets > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Target: $plannedSets sets × $plannedRepRange reps",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = BrutalistColors.textMuted,
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // Existing logged sets
+                if (existingLogs.isNotEmpty()) {
+                    item {
+                        Text(
+                            "LOGGED SETS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = BrutalistLime,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    items(existingLogs, key = { it.setNumber }) { log ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .background(BrutalistColors.background, BrutalistShape)
+                                .border(1.dp, BrutalistColors.border.copy(alpha = 0.3f), BrutalistShape)
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Set ${log.setNumber}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BrutalistColors.text,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(0.25f)
+                            )
+                            Text(
+                                "${log.reps} reps",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BrutalistColors.text,
+                                modifier = Modifier.weight(0.3f)
+                            )
+                            Text(
+                                if (log.weightKg > 0) "%.1f kg".format(log.weightKg) else "BW",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BrutalistYellow,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(0.3f)
+                            )
+                            IconButton(
+                                onClick = { onDeleteSet(log.setNumber) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Delete set",
+                                    tint = BrutalistRed,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        BrutalistDivider()
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+
+                // Add new set form
+                item {
+                    Text(
+                        "ADD SET $nextSetNumber",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = BrutalistBlue,
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    // Reps input
+                    Text("Reps", style = MaterialTheme.typography.labelSmall, color = BrutalistColors.textMuted)
+                    Spacer(Modifier.height(4.dp))
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = repsInput,
+                        onValueChange = { repsInput = it.filter { char -> char.isDigit() } },
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = BrutalistColors.text,
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                        ),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, BrutalistColors.border, BrutalistShape)
+                            .background(BrutalistColors.background, BrutalistShape)
+                            .padding(12.dp),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (repsInput.isEmpty()) {
+                                    Text(
+                                        "e.g. 12",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = BrutalistColors.textMuted.copy(alpha = 0.5f)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Weight input
+                    Text("Weight (kg)", style = MaterialTheme.typography.labelSmall, color = BrutalistColors.textMuted)
+                    Text("Leave empty or 0 for bodyweight", style = MaterialTheme.typography.labelSmall, color = BrutalistColors.textMuted.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(4.dp))
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = weightInput,
+                        onValueChange = { newValue ->
+                            // Allow digits and one decimal point
+                            val filtered = newValue.filter { it.isDigit() || it == '.' }
+                            if (filtered.count { it == '.' } <= 1) {
+                                weightInput = filtered
+                            }
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = BrutalistColors.text,
+                            fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                        ),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, BrutalistColors.border, BrutalistShape)
+                            .background(BrutalistColors.background, BrutalistShape)
+                            .padding(12.dp),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (weightInput.isEmpty()) {
+                                    Text(
+                                        "e.g. 60.0",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = BrutalistColors.textMuted.copy(alpha = 0.5f)
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        BrutalistOutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("CLOSE", color = BrutalistColors.text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                        BrutalistButton(
+                            onClick = {
+                                val reps = repsInput.toIntOrNull()
+                                if (reps != null && reps > 0) {
+                                    val weight = weightInput.toFloatOrNull() ?: 0f
+                                    onLogSet(nextSetNumber, reps, weight)
+                                    repsInput = ""
+                                    weightInput = ""
+                                }
+                            },
+                            color = BrutalistLime,
+                            enabled = repsInput.isNotBlank() && (repsInput.toIntOrNull() ?: 0) > 0,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("LOG SET", color = Color.Black, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
     }
 }
