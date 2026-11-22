@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
+import kotlin.math.roundToInt
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +50,7 @@ fun ProfileScreen(
 
     var showForm by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
+    var showImportConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -135,7 +137,7 @@ fun ProfileScreen(
                                 text = { Text("Import Data", color = BrutalistColors.text) },
                                 onClick = {
                                     showSettingsMenu = false
-                                    importLauncher.launch(arrayOf("application/json"))
+                                    showImportConfirm = true
                                 }
                             )
                         }
@@ -169,6 +171,36 @@ fun ProfileScreen(
                 )
             }
         }
+    }
+
+    if (showImportConfirm) {
+        BrutalistDialog(
+            onDismissRequest = { showImportConfirm = false },
+            title = { Text("Import Backup?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "This will ERASE all current data (splits, workouts, attendance, " +
+                        "weight, and profile) and replace it with the backup file. This cannot be undone."
+                )
+            },
+            confirmButton = {
+                BrutalistButton(
+                    onClick = {
+                        showImportConfirm = false
+                        importLauncher.launch(arrayOf("application/json"))
+                    },
+                    color = BrutalistPink,
+                    textColor = Color.White
+                ) { Text("ERASE & IMPORT") }
+            },
+            dismissButton = {
+                BrutalistButton(
+                    onClick = { showImportConfirm = false },
+                    color = BrutalistColors.card,
+                    textColor = BrutalistColors.text
+                ) { Text("CANCEL") }
+            }
+        )
     }
 }
 
@@ -219,21 +251,32 @@ fun ProfileForm(
                 } else {
                     val ftOptions = (4..8).map { it.toString() }
                     val inOptions = (0..11).map { it.toString() }
-                    var feet by remember(height) { mutableStateOf(if (height.contains(".")) height.substringBefore(".") else "5") }
-                    var inches by remember(height) { mutableStateOf(if (height.contains(".")) height.substringAfter(".") else "0") }
+                    // `height` is always centimeters; derive feet/inches for display.
+                    // Round total inches once (same math as formatHeight) so the form
+                    // and the dashboard never disagree for off-boundary cm values.
+                    val cmValue = height.toFloatOrNull() ?: 0f
+                    val totalInches = if (cmValue > 0f) (cmValue / 2.54f).roundToInt() else 60
+                    val feet = totalInches / 12
+                    val inches = totalInches % 12
 
                     Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BrutalistDropdownMenu(
-                            value = feet,
+                            value = feet.toString(),
                             options = ftOptions,
-                            onValueChange = { feet = it; height = "$it.$inches" },
+                            onValueChange = { ft ->
+                                val f = ft.toIntOrNull() ?: feet
+                                height = (((f * 12) + inches) * 2.54f).roundToInt().toString()
+                            },
                             label = "Ft",
                             modifier = Modifier.weight(1f)
                         )
                         BrutalistDropdownMenu(
-                            value = inches,
+                            value = inches.toString(),
                             options = inOptions,
-                            onValueChange = { inches = it; height = "$feet.$it" },
+                            onValueChange = { inch ->
+                                val i = inch.toIntOrNull() ?: inches
+                                height = (((feet * 12) + i) * 2.54f).roundToInt().toString()
+                            },
                             label = "In",
                             modifier = Modifier.weight(1f)
                         )
@@ -242,21 +285,8 @@ fun ProfileForm(
                 
                 BrutalistButton(
                     onClick = { 
-                        if (heightUnit == "cm") {
-                            heightUnit = "ft"
-                            val cm = height.toFloatOrNull() ?: 170f
-                            val totalInches = cm / 2.54f
-                            val f = (totalInches / 12).toInt()
-                            val i = (totalInches % 12).toInt()
-                            height = "$f.$i"
-                        } else {
-                            heightUnit = "cm"
-                            val f = height.substringBefore(".").toIntOrNull() ?: 5
-                            val i = height.substringAfter(".").toIntOrNull() ?: 0
-                            val totalInches = (f * 12) + i
-                            val cm = totalInches * 2.54f
-                            height = cm.toInt().toString()
-                        }
+                        // Height is stored in cm; the unit only changes how it's shown.
+                        heightUnit = if (heightUnit == "cm") "ft" else "cm"
                     },
                     color = BrutalistYellow,
                     textColor = Color.Black,
@@ -276,7 +306,16 @@ fun ProfileForm(
                     modifier = Modifier.weight(1f)
                 )
                 BrutalistButton(
-                    onClick = { weightUnit = if (weightUnit == "kg") "lbs" else "kg" },
+                    onClick = {
+                        val w = weight.toFloatOrNull()
+                        if (weightUnit == "kg") {
+                            weightUnit = "lbs"
+                            if (w != null) weight = (Math.round(w * 2.20462f * 10f) / 10f).toString()
+                        } else {
+                            weightUnit = "kg"
+                            if (w != null) weight = (Math.round(w / 2.20462f * 10f) / 10f).toString()
+                        }
+                    },
                     color = BrutalistPink,
                     textColor = Color.White,
                     modifier = Modifier.weight(0.5f)
@@ -349,8 +388,8 @@ fun ProfileDashboard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     ProfileStatItem(label = "AGE", value = "${profile.age}")
-                    ProfileStatItem(label = "HEIGHT", value = "${profile.height} ${profile.heightUnit}")
-                    ProfileStatItem(label = "WEIGHT", value = "${profile.weight} ${profile.weightUnit}")
+                    ProfileStatItem(label = "HEIGHT", value = formatHeight(profile.height, profile.heightUnit))
+                    ProfileStatItem(label = "WEIGHT", value = "${formatNumber(profile.weight)} ${profile.weightUnit}")
                 }
             }
         }
@@ -412,6 +451,19 @@ fun ProfileDashboard(
                 }
             }
         }
+    }
+}
+
+private fun formatNumber(value: Float): String =
+    if (value % 1f == 0f) value.toInt().toString() else (Math.round(value * 10f) / 10f).toString()
+
+private fun formatHeight(heightCm: Float, unit: String): String {
+    if (heightCm <= 0f) return "—"
+    return if (unit == "ft") {
+        val totalInches = (heightCm / 2.54f).roundToInt()
+        "${totalInches / 12}'${totalInches % 12}\""
+    } else {
+        "${heightCm.roundToInt()} cm"
     }
 }
 

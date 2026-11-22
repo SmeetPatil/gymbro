@@ -2,9 +2,9 @@
 
 > A comprehensive, personalized fitness tracking application with a huge exercise library, multiple workout split creation, daily progress, and volume tracker with Google Fit integration to track steps, calories, distance, and heart rate.
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple.svg)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.20-purple.svg)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material3-blue.svg)](https://developer.android.com/jetpack/compose)
-[![Android](https://img.shields.io/badge/Android-14+-green.svg)](https://www.android.com/)
+[![Android](https://img.shields.io/badge/Android-8.0+-green.svg)](https://www.android.com/)
 
 ## 📖 Table of Contents
 

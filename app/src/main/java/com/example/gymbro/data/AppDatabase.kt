@@ -69,9 +69,20 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+// Data-only cleanup: remove split_days rows orphaned by past split/workout
+// deletions (no schema change, so the Room schema hash is unaffected).
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "DELETE FROM split_days WHERE splitId NOT IN (SELECT id FROM splits) " +
+                "OR workoutId NOT IN (SELECT id FROM workouts)"
+        )
+    }
+}
+
 @Database(
     entities = [Workout::class, Split::class, SplitDay::class, Attendance::class, WeightLog::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

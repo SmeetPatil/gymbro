@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gymbro.ui.theme.*
 import com.example.gymbro.R
+import com.example.gymbro.data.WeightLog
 import android.widget.Toast
 import java.time.format.DateTimeFormatter
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -279,6 +280,95 @@ fun HealthScreen(
                             "Set up your profile to see your BMI.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = BrutalistColors.textMuted,
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Weight Tracker ─────────────────────────────────────────
+        item {
+            WeightCard(
+                history = weightHistory,
+                onLogWeight = { kg -> viewModel.logWeight(kg) }
+            )
+        }
+    }
+}
+
+@Composable
+fun WeightCard(
+    history: List<WeightLog>,
+    onLogWeight: (Float) -> Unit,
+) {
+    var input by remember { mutableStateOf("") }
+    val latest = history.firstOrNull()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+
+    BrutalistCard(modifier = Modifier.fillMaxWidth(), accentColor = BrutalistLime) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Weight Tracker",
+                style = MaterialTheme.typography.labelLarge,
+                color = BrutalistLime,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (latest != null) "${latest.weightKg} kg" else "No entries yet",
+                style = MaterialTheme.typography.headlineSmall,
+                color = BrutalistColors.text,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                BrutalistTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text("Weight (kg)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                )
+                BrutalistButton(
+                    onClick = {
+                        val kg = input.toFloatOrNull()
+                        if (kg != null && kg > 0f) {
+                            onLogWeight(kg)
+                            input = ""
+                        }
+                    },
+                    color = BrutalistLime,
+                    textColor = BrutalistColors.text,
+                ) {
+                    Text("LOG", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (history.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                BrutalistDivider()
+                Spacer(Modifier.height(8.dp))
+                history.take(8).forEach { log ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            log.date.format(dateFormatter),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrutalistColors.textMuted,
+                        )
+                        Text(
+                            "${log.weightKg} kg",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrutalistColors.text,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }

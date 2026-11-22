@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.gymbro.data.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -115,7 +116,7 @@ class WorkoutsViewModel @Inject constructor(
 
     fun deleteSplit(id: Int) {
         viewModelScope.launch {
-            splitDao.deleteSplit(id)
+            splitDao.deleteSplitWithDays(id)
         }
     }
     
@@ -129,7 +130,12 @@ class WorkoutsViewModel @Inject constructor(
 
     // Seed data if empty and deduplicate
     fun seedWorkouts() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Run once, off the main thread: parsing the ~1MB exercise JSON on every
+            // screen entry caused main-thread jank. Gate on a prefs flag.
+            val prefs = context.getSharedPreferences("gymbro_prefs", Context.MODE_PRIVATE)
+            if (prefs.getBoolean("workouts_seeded_v1", false)) return@launch
+
             // 1. Deduplicate any existing workouts (including plurals)
             val currentWorkouts = workoutDao.getAllWorkoutsSync()
             val groupedByName = currentWorkouts.groupBy { 
@@ -238,6 +244,12 @@ class WorkoutsViewModel @Inject constructor(
             }
             if (newWorkouts.isNotEmpty()) {
                 workoutDao.insertWorkouts(newWorkouts)
+            }
+
+            // Mark seeded only once the table is populated, so a failed/empty parse
+            // retries on the next launch rather than being skipped forever.
+            if (workoutDao.getAllWorkoutsSync().isNotEmpty()) {
+                prefs.edit().putBoolean("workouts_seeded_v1", true).apply()
             }
         }
     }

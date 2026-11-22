@@ -28,14 +28,30 @@ class UserProfileManager @Inject constructor(
     val profile: StateFlow<UserProfile> = _profile
 
     private fun loadProfile(): UserProfile {
+        val heightUnit = prefs.getString("height_unit", "cm") ?: "cm"
+        var height = prefs.getFloat("height", 0f)
+
+        // One-time migration: older builds stored ft-height as a lossy "feet.inches"
+        // decimal (e.g. 5'10" -> "5.10" -> 5.1f). Height is now always centimeters.
+        // Decode any legacy ft value with the old convention and convert to cm so it
+        // stops colliding/corrupting and so BMI reads it correctly.
+        if (prefs.getInt("schema_version", 1) < 2) {
+            if (heightUnit == "ft" && height > 0f && height < 13f) {
+                val feet = height.toInt()
+                val inches = height.toString().substringAfter(".", "0").toIntOrNull() ?: 0
+                height = ((feet * 12) + inches) * 2.54f
+            }
+            prefs.edit().putFloat("height", height).putInt("schema_version", 2).apply()
+        }
+
         return UserProfile(
             isCreated = prefs.getBoolean("is_created", false),
             name = prefs.getString("name", "") ?: "",
             age = prefs.getInt("age", 0),
-            height = prefs.getFloat("height", 0f),
+            height = height,
             weight = prefs.getFloat("weight", 0f),
             weightUnit = prefs.getString("weight_unit", "kg") ?: "kg",
-            heightUnit = prefs.getString("height_unit", "cm") ?: "cm"
+            heightUnit = heightUnit
         )
     }
 

@@ -2,6 +2,7 @@ package com.example.gymbro.data
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.withTransaction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -61,20 +62,32 @@ class BackupManager @Inject constructor(
                 }
             } ?: return@withContext Result.failure(Exception("Could not open input stream"))
 
-            val backupData = gson.fromJson(json, BackupData::class.java)
-
-            db.runInTransaction {
-                db.clearAllTables()
+            // Parse and validate BEFORE touching the database, so a malformed/empty
+            // file can never wipe the user's existing data.
+            val backupData: BackupData? = gson.fromJson(json, BackupData::class.java)
+            if (backupData == null) {
+                return@withContext Result.failure(Exception("Backup file is empty or invalid"))
             }
 
-            // Insert new data
-            db.workoutDao().insertWorkouts(backupData.workouts)
-            db.splitDao().insertSplits(backupData.splits)
-            db.splitDao().insertSplitDays(backupData.splitDays)
-            db.attendanceDao().insertAttendances(backupData.attendances)
-            db.weightDao().insertWeights(backupData.weightLogs)
+            // Atomic replace: clear + re-insert inside ONE transaction. If any step
+            // fails (including a null field from a corrupt backup) the whole thing
+            // rolls back, leaving the current data intact instead of wiped/partial.
+            db.withTransaction {
+                db.splitDao().deleteAllSplitDays()
+                db.splitDao().deleteAllSplits()
+                db.workoutDao().deleteAllWorkouts()
+                db.attendanceDao().deleteAllAttendance()
+                db.weightDao().deleteAllWeights()
 
-            // Save user profile
+                db.workoutDao().insertWorkouts(backupData.workouts)
+                db.splitDao().insertSplits(backupData.splits)
+                db.splitDao().insertSplitDays(backupData.splitDays)
+                db.attendanceDao().insertAttendances(backupData.attendances)
+                db.weightDao().insertWeights(backupData.weightLogs)
+            }
+
+            // User profile lives in SharedPreferences, not Room — apply it only
+            // after the database transaction has successfully committed.
             userProfileManager.saveProfile(backupData.userProfile)
 
             Result.success(Unit)

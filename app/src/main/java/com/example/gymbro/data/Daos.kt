@@ -27,6 +27,9 @@ interface WorkoutDao {
 
     @Query("DELETE FROM workouts WHERE id = :id")
     suspend fun deleteWorkout(id: Int)
+
+    @Query("DELETE FROM workouts")
+    suspend fun deleteAllWorkouts()
 }
 
 @Dao
@@ -51,6 +54,22 @@ interface SplitDao {
 
     @Query("DELETE FROM splits WHERE id = :id")
     suspend fun deleteSplit(id: Int)
+
+    @Query("DELETE FROM split_days WHERE splitId = :splitId")
+    suspend fun deleteSplitDaysForSplit(splitId: Int)
+
+    /** Deletes a split and all of its split_days together so no orphaned rows remain. */
+    @Transaction
+    suspend fun deleteSplitWithDays(splitId: Int) {
+        deleteSplitDaysForSplit(splitId)
+        deleteSplit(splitId)
+    }
+
+    @Query("DELETE FROM splits")
+    suspend fun deleteAllSplits()
+
+    @Query("DELETE FROM split_days")
+    suspend fun deleteAllSplitDays()
 
     @Query("UPDATE splits SET isActive = 0")
     suspend fun deactivateAllSplits()
@@ -110,6 +129,9 @@ interface AttendanceDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setAttendance(attendance: Attendance)
+
+    @Query("DELETE FROM attendance")
+    suspend fun deleteAllAttendance()
 }
 
 @Dao
@@ -125,4 +147,7 @@ interface WeightDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun logWeight(log: WeightLog)
+
+    @Query("DELETE FROM weight_logs")
+    suspend fun deleteAllWeights()
 }

@@ -27,9 +27,10 @@ object DatabaseModule {
             "gymbro_db"
         )
         .addMigrations(
-            com.example.gymbro.data.MIGRATION_1_2, 
+            com.example.gymbro.data.MIGRATION_1_2,
             com.example.gymbro.data.MIGRATION_2_3,
-            com.example.gymbro.data.MIGRATION_3_4
+            com.example.gymbro.data.MIGRATION_3_4,
+            com.example.gymbro.data.MIGRATION_4_5
         )
         .build()
     }

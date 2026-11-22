@@ -9,6 +9,7 @@ import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,7 +40,8 @@ class HealthViewModel @Inject constructor(
     val bmi: StateFlow<Float> = userProfileManager.profile.map { profile ->
         if (profile.height > 0f && profile.weight > 0f) {
             val weightInKg = if (profile.weightUnit == "lbs") profile.weight * 0.453592f else profile.weight
-            val heightInM = if (profile.heightUnit == "cm") profile.height / 100f else profile.height * 0.0254f
+            // Height is stored canonically in centimeters regardless of display unit.
+            val heightInM = profile.height / 100f
             weightInKg / (heightInM * heightInM)
         } else {
             0f
@@ -102,33 +104,43 @@ class HealthViewModel @Inject constructor(
                     val endTime = Instant.now()
                     
                     if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class))) {
-                        val stepsResponse = healthConnectClient.readRecords(
-                            ReadRecordsRequest(
-                                recordType = StepsRecord::class,
+                        // Use the aggregation API instead of summing raw records.
+                        // When several providers (e.g. Google Fit and the device's own
+                        // step provider) write overlapping StepsRecords, summing them
+                        // double-counts; aggregate() de-duplicates overlapping data by
+                        // data-origin priority so each step is counted once.
+                        val stepsResponse = healthConnectClient.aggregate(
+                            AggregateRequest(
+                                metrics = setOf(StepsRecord.COUNT_TOTAL),
                                 timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
                             )
                         )
-                        _stepsToday.value = stepsResponse.records.sumOf { it.count }
+                        _stepsToday.value = stepsResponse[StepsRecord.COUNT_TOTAL] ?: 0L
                     }
                     
                     if (granted.contains(HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class))) {
-                        val calsResponse = healthConnectClient.readRecords(
-                            ReadRecordsRequest(
-                                recordType = ActiveCaloriesBurnedRecord::class,
+                        // Aggregated to avoid double-counting overlapping data from
+                        // multiple providers (same reasoning as steps above).
+                        val calsResponse = healthConnectClient.aggregate(
+                            AggregateRequest(
+                                metrics = setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL),
                                 timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
                             )
                         )
-                        _caloriesToday.value = calsResponse.records.sumOf { it.energy.inKilocalories }.toLong()
+                        _caloriesToday.value =
+                            (calsResponse[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories ?: 0.0).toLong()
                     }
                     
                     if (granted.contains(HealthPermission.getReadPermission(DistanceRecord::class))) {
-                        val distResponse = healthConnectClient.readRecords(
-                            ReadRecordsRequest(
-                                recordType = DistanceRecord::class,
+                        // Aggregated to avoid double-counting overlapping data from
+                        // multiple providers (same reasoning as steps above).
+                        val distResponse = healthConnectClient.aggregate(
+                            AggregateRequest(
+                                metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
                                 timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
                             )
                         )
-                        _distanceToday.value = distResponse.records.sumOf { it.distance.inMeters }
+                        _distanceToday.value = distResponse[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0
                     }
                     
                     if (granted.contains(HealthPermission.getReadPermission(HeartRateRecord::class))) {
@@ -148,6 +160,12 @@ class HealthViewModel @Inject constructor(
         }
     }
     
+    fun logWeight(weightKg: Float) {
+        viewModelScope.launch {
+            weightDao.logWeight(WeightLog(LocalDate.now(), weightKg))
+        }
+    }
+
     fun syncWorkout(name: String, durationMinutes: Long) {
         viewModelScope.launch {
             if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
